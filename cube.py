@@ -1,9 +1,66 @@
-from itertools import combinations, product
+from itertools import combinations, product, permutations
 import numpy as np
 
 from PIL import Image, ImageDraw, ImageFont
 
 class Cube:
+    adjacencies = {
+        0: (9, 38),
+        1: (37),
+        2: (36, 29),
+        3: (10),
+        4: (),
+        5: (28),
+        6: (18, 11),
+        7: (19),
+        8: (27, 20),
+        9: (38, 0),
+        10: (7),
+        11: (6, 18),
+        12: (41),
+        13: (),
+        14: (21),
+        15: (51, 44),
+        16: (48),
+        17: (24, 45),
+        18: (11, 6),
+        19: (7),
+        20: (8, 27),
+        21: (14),
+        22: (),
+        23: (30),
+        24: (45, 17),
+        25: (46),
+        26: (33, 47),
+        27: (20, 8),
+        28: (5),
+        29: (8, 36),
+        30: (23),
+        31: (),
+        32: (39),
+        33: (47, 26),
+        34: (50),
+        35: (42, 53),
+        36: (29, 2),
+        37: (1),
+        38: (0, 9),
+        39: (32),
+        40: (),
+        41: (12),
+        42: (53, 35),
+        43: (52),
+        44: (15, 51),
+        45: (17, 24),
+        46: (25),
+        47: (26, 33),
+        48: (16),
+        49: (),
+        50: (34),
+        51: (44, 15),
+        52: (43),
+        53: (35, 42)
+    }
+
     inverses = {
         "L": "L'",
         "L'": "L",
@@ -114,10 +171,23 @@ class Cube:
         self.state = Cube.solved.copy()
 
     def move(self, moves):
-        if all(isinstance(x, str) for x in moves):
+        try:
             moves = [Cube.move_dict[move] for move in moves]
+        except KeyError as e:
+            print(f"Invalid move: {e}")
         for move in moves:
             self.state = self.state[Cube.idxs[move]] 
+
+    @staticmethod
+    def move_from_solved(moves):
+        try:
+            moves = [Cube.move_dict[move] for move in moves]
+        except KeyError as e:
+            print(f"Invalid move: {e}")
+        state = Cube.solved
+        for move in moves:
+            state = state[Cube.idxs[move]] 
+        return state
 
     def __str__(self):
         color_map = {0: 'G', 1: 'Y', 2: 'R', 3: 'W', 4: 'O', 5: 'B'}
@@ -184,24 +254,69 @@ class Cube:
         image.show()
     
     @staticmethod
-    def get_commutator_triplets(corners):
+    def get_commutator_triplets(is_corners):
         move_groups = Cube.move_groups
-        if corners:
+        if is_corners:
             move_groups = move_groups[:-3]
-            print(move_groups)
 
         triplets = []
-        for group_triplet in combinations(Cube.move_groups, 3):
-            for triplet in product(*group_triplet):
-                if corners:
-                    triplets.append(list(triplet))
-                elif not corners and any(move in ["M", "M'", "M2", "E", "E'", "E2", "S", "S'", "S2"] for move in triplet):
-                    triplets.append(list(triplet))
+        for group_triplet in combinations(move_groups, 3):
+            for triplet_combo in product(*group_triplet):
+                for triplet in permutations(triplet_combo):
+                    if is_corners:
+                        triplets.append(list(triplet))
+                    elif not is_corners and any(move in ["M", "M'", "M2", "E", "E'", "E2", "S", "S'", "S2"] for move in triplet):
+                        triplets.append(list(triplet))
 
         return triplets
     
     @staticmethod
-    def get_commutator(triplet, setup=None):
+    def get_commutators(is_corners, degree=0):
+        triplets = Cube.get_commutator_triplets(is_corners)
+        setups = Cube.generate_setups(degree, is_corners)
+        commutators = []
+        for triplet in triplets:
+            for setup in setups:
+                commutator = Cube.make_commutator(triplet, setup)
+                commutators.append(commutator)
+        return commutators
+
+    @staticmethod
+    def group_of_move(move):
+        """Return the group that contains the move"""
+        for group in Cube.move_groups:
+            if move in group:
+                return group
+        return None
+
+    @staticmethod
+    def is_valid_setup(setup):
+        """Checks if any two consecutive moves come from the same group"""
+        for i in range(len(setup) - 1):
+            if Cube.group_of_move(setup[i]) == Cube.group_of_move(setup[i+1]):
+                return False
+        return True
+
+    @staticmethod
+    def generate_setups(n, is_corners):
+        all_moves = list(Cube.move_dict.keys())
+
+        if is_corners:
+            all_moves = all_moves[:-9]
+
+        if n > len(all_moves):
+            raise ValueError("n cannot be greater than number of moves")
+
+        # Generate all possible permutations of moves of size n
+        move_setups = list(product(all_moves, repeat=n))
+
+        # Filter out any setups where two consecutive moves come from the same group
+        valid_setups = [setup for setup in move_setups if Cube.is_valid_setup(setup)]
+
+        return valid_setups
+    
+    @staticmethod
+    def make_commutator(triplet, setup=None):
         a,b,c = triplet
         commutator = [a, b, Cube.inverses[a], c, a, Cube.inverses[b], Cube.inverses[a], Cube.inverses[c]] # X Y X' Y'
         if setup:
@@ -210,6 +325,17 @@ class Cube:
                 commutator.append(Cube.inverses[move])
 
         return commutator
+    
+    @staticmethod
+    def check_pass(pos1, pos2, pos3, commutator, is_corners):
+        moved_state = Cube.move_from_solved(commutator)
+
+        passed = moved_state[pos1] == Cube.solved[pos3] and moved_state[pos2] == Cube.solved[pos1] and moved_state[pos3] == Cube.solved[pos2]
+        if passed:
+            passed = moved_state[Cube.adjacencies[pos1][0]] == Cube.solved[Cube.adjacencies[pos3][0]] and moved_state[Cube.adjacencies[pos2][0]] == Cube.solved[Cube.adjacencies[pos1][0]] and moved_state[Cube.adjacencies[pos3][0]] == Cube.solved[Cube.adjacencies[pos2][0]]
+            if is_corners and passed:
+                passed = moved_state[Cube.adjacencies[pos1][1]] == Cube.solved[Cube.adjacencies[pos3][1]] and moved_state[Cube.adjacencies[pos2][1]] == Cube.solved[Cube.adjacencies[pos1][1]] and moved_state[Cube.adjacencies[pos3][1]] == Cube.solved[Cube.adjacencies[pos2][1]]
+        return passed
 
 
 if __name__ == "__main__":
