@@ -1,5 +1,6 @@
 from itertools import combinations, product, permutations
 import numpy as np
+from typing import List, Union, Any
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -19,61 +20,62 @@ class Cube:
     }
 
     adjacencies = {
-        0: (9, 38),
-        1: (37),
-        2: (36, 29),
-        3: (10),
-        4: (),
-        5: (28),
-        6: (18, 11),
-        7: (19),
-        8: (27, 20),
-        9: (38, 0),
-        10: (7),
-        11: (6, 18),
-        12: (41),
-        13: (),
-        14: (21),
-        15: (51, 44),
-        16: (48),
-        17: (24, 45),
-        18: (11, 6),
-        19: (7),
-        20: (8, 27),
-        21: (14),
-        22: (),
-        23: (30),
-        24: (45, 17),
-        25: (46),
-        26: (33, 47),
-        27: (20, 8),
-        28: (5),
-        29: (8, 36),
-        30: (23),
-        31: (),
-        32: (39),
-        33: (47, 26),
-        34: (50),
-        35: (42, 53),
-        36: (29, 2),
-        37: (1),
-        38: (0, 9),
-        39: (32),
-        40: (),
-        41: (12),
-        42: (53, 35),
-        43: (52),
-        44: (15, 51),
-        45: (17, 24),
-        46: (25),
-        47: (26, 33),
-        48: (16),
-        49: (),
-        50: (34),
-        51: (44, 15),
-        52: (43),
-        53: (35, 42)
+        0: [9, 38],
+        1: [37],
+        2: [36, 29],
+        3: [10],
+        4: [],
+        5: [28],
+        6: [18, 11],
+        7: [19],
+        8: [27, 20],
+        9: [38, 0],
+        10: [7],
+        11: [6, 18],
+        12: [41],
+        13: [],
+        14: [21],
+        15: [51, 44],
+        16: [48],
+        17: [24, 45],
+        18: [11, 6],
+        19: [7],
+        20: [8, 27],
+        21: [14],
+        22: [],
+        23: [30],
+        24: [45, 17],
+        25: [46],
+        26: [33, 47],
+        27: [20, 8],
+        28: [5],
+        29: [8, 36],
+        30: [23],
+        31: [],
+        32: [39],
+        33: [47, 26],
+        34: [50],
+        35: [42, 53],
+        36: [29, 2],
+        37: [1],
+        38: [0, 9],
+        39: [32],
+        40: [],
+        41: [12],
+        42: [53, 35],
+        43: [52],
+        44: [15, 51],
+        45: [17, 24],
+        46: [25],
+        47: [26, 33],
+        48: [16],
+        49: [],
+        50: [34],
+        51: [44, 15],
+        52: [43],
+        53: [35, 42]
     }
+
 
     inverses = {
         "L": "L'",
@@ -220,6 +222,10 @@ class Cube:
         return ''.join(result)
     
     def display(self):
+        self.display_from_state(self.state)
+
+    @staticmethod
+    def display_from_state(state):
         # Define the size of each square and the overall image
         square_size = 50
         image_size = (square_size * 12, square_size * 9)
@@ -254,7 +260,7 @@ class Cube:
             for square_index in range(9):
                 index = face_index*9 + square_index
                 x, y = positions[face_index][square_index]
-                color = color_map[self.state[index]]
+                color = color_map[state[index]]
                 draw.rectangle([x*square_size, y*square_size, (x+1)*square_size, (y+1)*square_size], fill=color, outline=(0, 0, 0))
                 # Draw the index number in the center of the square
                 text = str(index)
@@ -338,26 +344,73 @@ class Cube:
     
 
     @staticmethod
-    def get_rotated_cube_state(pos1, pos2, pos3):
-        # moved_state = Cube.solved
+    def get_rotated_cube_array(indexes: List[int]) -> np.ndarray:
+        """
+        This function takes a list of indexes, and returns a new array where the values at these 
+        indexes and their adjacent indexes (according to Cube.adjacencies) are circularly rotated. 
+        It returns an error string if the adjacency lists for the provided indexes are not all the same length.
+        
+        Parameters:
+        indexes (List[int]): List of indexes to be rotated.
 
-        # tmp = moved_state(rotate_idxs[0]), Cube.adjacencies[rotate_idxs[0]]
-        # for i, idx in enumerate(rotate_idxs):
-        #     moved_state[idx] = 
-        ...
+        Returns:
+        new_array (np.ndarray): The array after rotation.
+        or 
+        str: Error message if adjacency lists do not have the same length.
+        """
+        new_array = Cube.solved
+
+        if len(indexes) < 2:
+            return new_array
+        # Perform the rotation for the given indexes
+        new_array[indexes] = np.roll(new_array[indexes], 1)
+        # Retrieve adjacency tuples
+        adjacencies = [Cube.adjacencies[i] for i in indexes]
+        # Check if all adjacency tuples have the same length
+        if len(set(map(len, adjacencies))) > 1:
+            raise ValueError("Adjacency lists do not have the same length")
+
+        # Perform the rotation for the adjacencies only if
+        for i in range(len(adjacencies[0])):
+            adj_indexes = [adj[i] for adj in adjacencies]
+            new_array[adj_indexes] = np.roll(new_array[adj_indexes], 1)
+
+        return new_array
 
     
     @staticmethod
-    def check_pass(pos1, pos2, pos3, commutator, is_corners):
+    def check_pass(indexes: List[int], commutator, naive=True):
         moved_state = Cube.move_from_solved(commutator)
+        state_to_match = Cube.get_rotated_cube_array(indexes)
 
-        passed = moved_state[pos1] == Cube.solved[pos3] and moved_state[pos2] == Cube.solved[pos1] and moved_state[pos3] == Cube.solved[pos2]
-        if passed:
-            passed = moved_state[Cube.adjacencies[pos1][0]] == Cube.solved[Cube.adjacencies[pos3][0]] and moved_state[Cube.adjacencies[pos2][0]] == Cube.solved[Cube.adjacencies[pos1][0]] and moved_state[Cube.adjacencies[pos3][0]] == Cube.solved[Cube.adjacencies[pos2][0]]
-            if is_corners and passed:
-                passed = moved_state[Cube.adjacencies[pos1][1]] == Cube.solved[Cube.adjacencies[pos3][1]] and moved_state[Cube.adjacencies[pos2][1]] == Cube.solved[Cube.adjacencies[pos1][1]] and moved_state[Cube.adjacencies[pos3][1]] == Cube.solved[Cube.adjacencies[pos2][1]]
-        return passed
-    
+        if not naive: # check that ONLY the specified cubies have been moved
+            return np.array_equal(moved_state, state_to_match)
+        else: # allow other cubies to be moved as well
+            # first check the speified indexes
+            passed = all(moved_state[indexes[i]] == state_to_match[indexes[i]] for i in range(len(indexes)))
+
+            if passed:
+                # then check all the adjacent indexes as well
+                adjacencies = [Cube.adjacencies[i] for i in indexes] # e.g. [(9, 38), (24, 45), (27, 20)]
+                adjacencies = [list(i) for i in zip(*adjacencies)] # e.g. [(9, 24, 27), (38, 45, 20)]
+                for indxs_to_match in adjacencies:
+                    passed = all(moved_state[idx] == state_to_match[idx] for idx in indxs_to_match)
+                    if not passed:
+                        return False
+
+            return passed
+        
+    # @staticmethod
+    # def check_pass(pos1, pos2, pos3, commutator, is_corners):
+    #     moved_state = Cube.move_from_solved(commutator)
+
+    #     passed = moved_state[pos1] == Cube.solved[pos3] and moved_state[pos2] == Cube.solved[pos1] and moved_state[pos3] == Cube.solved[pos2]
+    #     if passed:
+    #         passed = moved_state[Cube.adjacencies[pos1][0]] == Cube.solved[Cube.adjacencies[pos3][0]] and moved_state[Cube.adjacencies[pos2][0]] == Cube.solved[Cube.adjacencies[pos1][0]] and moved_state[Cube.adjacencies[pos3][0]] == Cube.solved[Cube.adjacencies[pos2][0]]
+    #         if is_corners and passed:
+    #             passed = moved_state[Cube.adjacencies[pos1][1]] == Cube.solved[Cube.adjacencies[pos3][1]] and moved_state[Cube.adjacencies[pos2][1]] == Cube.solved[Cube.adjacencies[pos1][1]] and moved_state[Cube.adjacencies[pos3][1]] == Cube.solved[Cube.adjacencies[pos2][1]]
+    #     return passed
+        
 
     @staticmethod
     def get_heuristic(commutator):
