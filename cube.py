@@ -3,6 +3,10 @@ import numpy as np
 
 from PIL import Image, ImageDraw, ImageFont
 
+# TODO
+# 1. extend get_rotated_cube_state() and check_pass() (naive version) to be extendable to any amount of indexes
+# 2. write a function to clean commutator string (so that it can get passed to heuristic generator)
+# 3. Incorporate 4 movers into edge commutators
 class Cube:
 
     heuristics = {
@@ -170,7 +174,6 @@ class Cube:
 
         [0,1,2,16,13,10,6,7,8,9,48,11,12,49,14,15,50,17,18,19,20,21,22,23,24,25,26,27,3,29,30,4,32,33,5,35,36,37,38,39,40,41,42,43,44,45,46,47,34,31,28,51,52,53], # S  24
         [0,1,2,28,31,34,6,7,8,9,5,11,12,4,14,15,3,17,18,19,20,21,22,23,24,25,26,27,50,29,30,49,32,33,48,35,36,37,38,39,40,41,42,43,44,45,46,47,10,13,16,51,52,53], # S' 25
-
         [0,1,2,50,49,48,6,7,8,9,34,11,12,31,14,15,28,17,18,19,20,21,22,23,24,25,26,27,16,29,30,13,32,33,10,35,36,37,38,39,40,41,42,43,44,45,46,47,5,4,3,51,52,53], # S2 26
     ])
 
@@ -317,10 +320,7 @@ class Cube:
         if n > len(all_moves):
             raise ValueError("n cannot be greater than number of moves")
 
-        # Generate all possible permutations of moves of size n
         move_setups = list(product(all_moves, repeat=n))
-
-        # Filter out any setups where two consecutive moves come from the same group
         valid_setups = [setup for setup in move_setups if Cube.is_valid_setup(setup)]
 
         return valid_setups
@@ -335,6 +335,17 @@ class Cube:
                 commutator.append(Cube.inverses[move])
 
         return commutator
+    
+
+    @staticmethod
+    def get_rotated_cube_state(pos1, pos2, pos3):
+        # moved_state = Cube.solved
+
+        # tmp = moved_state(rotate_idxs[0]), Cube.adjacencies[rotate_idxs[0]]
+        # for i, idx in enumerate(rotate_idxs):
+        #     moved_state[idx] = 
+        ...
+
     
     @staticmethod
     def check_pass(pos1, pos2, pos3, commutator, is_corners):
