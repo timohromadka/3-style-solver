@@ -4,6 +4,16 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 class Cube:
+
+    heuristics = {
+        "R": 0,
+        "U": 0,
+        "F": 2,
+        "D": 1,
+        "L": 2, 
+        "B": 5
+    }
+
     adjacencies = {
         0: (9, 38),
         1: (37),
@@ -336,6 +346,15 @@ class Cube:
             if is_corners and passed:
                 passed = moved_state[Cube.adjacencies[pos1][1]] == Cube.solved[Cube.adjacencies[pos3][1]] and moved_state[Cube.adjacencies[pos2][1]] == Cube.solved[Cube.adjacencies[pos1][1]] and moved_state[Cube.adjacencies[pos3][1]] == Cube.solved[Cube.adjacencies[pos2][1]]
         return passed
+    
+
+    @staticmethod
+    def get_heuristic(commutator):
+        return sum([Cube.heuristics[move[0]] for move in commutator])
+
+    @staticmethod
+    def clean_commutator(commutator):
+        ...
 
 
 if __name__ == "__main__":
