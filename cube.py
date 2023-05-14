@@ -9,12 +9,25 @@ from PIL import Image, ImageDraw, ImageFont
 # 2. write a function to clean commutator string (so that it can get passed to heuristic generator)
 # 3. Incorporate 4 movers into edge commutators
 class Cube:
+    # Define a dictionary to keep track of canceling moves
+    cancel_dict = {'U': "U'", "U'": 'U', 'U2': 'U2', 'R': "R'", "R'": 'R', 'R2': 'R2',
+                   'F': "F'", "F'": 'F', 'F2': 'F2', 'L': "L'", "L'": 'L', 'L2': 'L2',
+                   'B': "B'", "B'": 'B', 'B2': 'B2', 'D': "D'", "D'": 'D', 'D2': 'D2',
+                   'M': "M'", "M'": 'M', 'M2': 'M2', 'E': "E'", "E'": 'E', 'E2': 'E2',
+                   'S': "S'", "S'": 'S', 'S2': 'S2'}
+
+    # Define a dictionary to keep track of reducing moves
+    reduce_dict = {'U2': 'U', "U'": 'U2', 'R2': 'R', "R'": 'R2',
+                   'F2': 'F', "F'": 'F2', 'L2': 'L', "L'": 'L2',
+                   'B2': 'B', "B'": 'B2', 'D2': 'D', "D'": 'D2',
+                   'M2': 'M', "M'": 'M2', 'E2': 'E', "E'": 'E2',
+                   'S2': 'S', "S'": 'S2'}
 
     heuristics = {
         "R": 0,
         "U": 0,
-        "F": 2,
-        "D": 1,
+        "F": 1,
+        "D": 0,
         "L": 2, 
         "B": 5
     }
@@ -116,17 +129,28 @@ class Cube:
         "z2": "z2"
     }
 
+    move_to_move_group = {
+        "U": 0, "U'": 0, "U2": 0,
+        "R": 1, "R'": 1, "R2": 1,
+        "F": 2, "F'": 2, "F2": 2,
+        "L": 3, "L'": 3, "L2": 3,
+        "B": 4, "B'": 4, "B2": 4,
+        "D": 5, "D'": 5, "D2": 5,
+        "M": 6, "M'": 6, "M2": 6,
+        "E": 7, "E'": 7, "E2": 7,
+        "S": 8, "S'": 8, "S2": 8
+    }
 
     move_groups = [
-        ["U", "U'", "U2"],
-        ["R", "R'", "R2"],
-        ["F", "F'", "F2"],
-        ["L", "L'", "L2"],
-        ["B", "B'", "B2"],
-        ["D", "D'", "D2"],  
-        ["M", "M'", "M2"],
-        ["E", "E'", "E2"],
-        ["S", "S'", "S2"]
+        ["U", "U2", "U'"],
+        ["R", "R2", "R'"],
+        ["F", "F2", "F'"],
+        ["L", "L2", "L'"],
+        ["B", "B2", "B'"],
+        ["D", "D2", "D'"],  
+        ["M", "M2", "M'"],
+        ["E", "E2", "E'"],
+        ["S", "S2", "S'"]
     ]
 
     move_dict = {
@@ -414,12 +438,49 @@ class Cube:
 
     @staticmethod
     def get_heuristic(commutator: List[str]) -> int:
-        return sum([Cube.heuristics[move[0]] for move in commutator])
+        return sum([Cube.heuristics[move[0]] for move in Cube.reduce_commutator(commutator)])
 
     @staticmethod
     def clean_commutator(commutator: List[str]) -> str:
         return ' '.join([move.ljust(2) for move in commutator])
+    
+    # TODO
+    # make this neater!
+    @staticmethod
+    def reduce_commutator(commutator: List[str]) -> List[str]:
+        reduction_dict = {
+            " ": {"'": None, "2": "'", " ": "2"},
+            "'": {" ": None, "2": "", "'": "2"},
+            "2": {" ": "'", "'": "", "2": None}
+        }
+
+        if len(commutator) == 8:
+            return commutator
+        
+        not_reduced = True
+        new_commutator = commutator.copy()
+        while not_reduced:
+            current_round = new_commutator
+            for i in range(len(new_commutator)-1):
+                # pad with empty space
+                move_a = new_commutator[i] + " "
+                move_b = new_commutator[i+1] + " "
+                if move_a[0] == move_b[0]: # same move type, e.g. U' and U
+                    if reduction_dict[move_a[1]][move_b[1]] is not None:
+                        new_commutator[i] = move_a[0] + reduction_dict[move_a[1]][move_b[1]]
+                        new_commutator[i+1] = '#'
+                    else: # completely cancel out both moves
+                        new_commutator[i] = '#'
+                        new_commutator[i+1] = '#'
+            new_commutator = [move for move in new_commutator if '#' not in move]
 
 
+            if new_commutator != current_round:
+                new_commutator == current_round
+            else:
+                not_reduced = False
+
+        return new_commutator
+    
 if __name__ == "__main__":
     ...
