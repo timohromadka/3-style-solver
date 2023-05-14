@@ -344,7 +344,7 @@ class Cube:
     
 
     @staticmethod
-    def get_rotated_cube_array(indexes: List[int]) -> np.ndarray:
+    def get_rotated_cube_array(indexes: List[List[int]]) -> np.ndarray:
         """
         This function takes a list of indexes, and returns a new array where the values at these 
         indexes and their adjacent indexes (according to Cube.adjacencies) are circularly rotated. 
@@ -359,44 +359,44 @@ class Cube:
         str: Error message if adjacency lists do not have the same length.
         """
         new_array = Cube.solved
+        for subindexes in indexes:
+            if len(subindexes) > 1: # only if 2 or more pieces are iven to be rotated
+                # Perform the rotation for the given indexes
+                new_array[subindexes] = np.roll(new_array[subindexes], 1)
+                # Retrieve adjacency tuples
+                adjacencies = [Cube.adjacencies[i] for i in subindexes]
+                # Check if all adjacency tuples have the same length
+                if len(set(map(len, adjacencies))) > 1:
+                    raise ValueError("Adjacency lists do not have the same length. Please make sure the indexes are all of the same cubie type.")
 
-        if len(indexes) < 2:
-            return new_array
-        # Perform the rotation for the given indexes
-        new_array[indexes] = np.roll(new_array[indexes], 1)
-        # Retrieve adjacency tuples
-        adjacencies = [Cube.adjacencies[i] for i in indexes]
-        # Check if all adjacency tuples have the same length
-        if len(set(map(len, adjacencies))) > 1:
-            raise ValueError("Adjacency lists do not have the same length")
-
-        # Perform the rotation for the adjacencies only if
-        for i in range(len(adjacencies[0])):
-            adj_indexes = [adj[i] for adj in adjacencies]
-            new_array[adj_indexes] = np.roll(new_array[adj_indexes], 1)
+                # Perform the rotation for the adjacencies only if
+                for i in range(len(adjacencies[0])):
+                    adj_indexes = [adj[i] for adj in adjacencies]
+                    new_array[adj_indexes] = np.roll(new_array[adj_indexes], 1)
 
         return new_array
 
-    
+    # TODO
+    # change to incorporate multiple lists of int, not just one, within indexes
     @staticmethod
-    def check_pass(indexes: List[int], commutator, naive=True):
+    def check_pass(indexes: List[List[int]], commutator, naive=True):
         moved_state = Cube.move_from_solved(commutator)
         state_to_match = Cube.get_rotated_cube_array(indexes)
 
         if not naive: # check that ONLY the specified cubies have been moved
             return np.array_equal(moved_state, state_to_match)
         else: # allow other cubies to be moved as well
-            # first check the speified indexes
-            passed = all(moved_state[indexes[i]] == state_to_match[indexes[i]] for i in range(len(indexes)))
-
-            if passed:
-                # then check all the adjacent indexes as well
-                adjacencies = [Cube.adjacencies[i] for i in indexes] # e.g. [(9, 38), (24, 45), (27, 20)]
-                adjacencies = [list(i) for i in zip(*adjacencies)] # e.g. [(9, 24, 27), (38, 45, 20)]
-                for indxs_to_match in adjacencies:
-                    passed = all(moved_state[idx] == state_to_match[idx] for idx in indxs_to_match)
-                    if not passed:
-                        return False
+            # first check the specified indexes
+            for subindexes in indexes:
+                passed = all(moved_state[subindexes[i]] == state_to_match[subindexes[i]] for i in range(len(subindexes)))
+                if passed:
+                    # then check all the adjacent subindexes as well
+                    adjacencies = [Cube.adjacencies[i] for i in subindexes] # e.g. [(9, 38), (24, 45), (27, 20)]
+                    adjacencies = [list(i) for i in zip(*adjacencies)] # e.g. [(9, 24, 27), (38, 45, 20)]
+                    for indxs_to_match in adjacencies:
+                        passed = all(moved_state[idx] == state_to_match[idx] for idx in indxs_to_match)
+                        if not passed:
+                            return False
 
             return passed
         
@@ -413,21 +413,13 @@ class Cube:
         
 
     @staticmethod
-    def get_heuristic(commutator):
+    def get_heuristic(commutator: List[str]) -> int:
         return sum([Cube.heuristics[move[0]] for move in commutator])
 
     @staticmethod
-    def clean_commutator(commutator):
-        ...
+    def clean_commutator(commutator: List[str]) -> str:
+        return ' '.join([move.ljust(2) for move in commutator])
 
 
 if __name__ == "__main__":
-    cube = Cube()
-    print("Initial solved state:")
-    print(cube.state)
-
-    moves = [0, 1, 2, 3, 4, 5]
-    cube.scramble(moves)
-    print("Scrambled state after applying moves:")
-    print(cube.state)
-    print(cube)
+    ...
