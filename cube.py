@@ -341,11 +341,11 @@ class Cube:
         for group_triplet in combinations(move_groups, 3):
             for triplet_combo in product(*group_triplet):
                 for triplet in permutations(triplet_combo):
-                    if cubie == Cubie.CORNERS or cubie == Cubie.BOTH:
+                    # edge commutators require a middle slice move by nature
+                    if cubie == Cubie.EDGES and any(move in ["M", "M'", "M2", "E", "E'", "E2", "S", "S'", "S2"] for move in triplet): 
                         triplets.append(list(triplet))
                     
-                    # edge commutators require a middle slice move by nature
-                    elif cubie == Cubie.EDGES and any(move in ["M", "M'", "M2", "E", "E'", "E2", "S", "S'", "S2"] for move in triplet): 
+                    else:
                         triplets.append(list(triplet))
 
         return triplets
@@ -377,7 +377,7 @@ class Cube:
             if Cube.group_of_move(setup[i]) == Cube.group_of_move(setup[i+1]):
                 return False
         return True
-
+        
     @staticmethod
     def generate_setups(n, cubie: Cubie):
         all_moves = list(Cube.move_dict.keys())
@@ -388,10 +388,13 @@ class Cube:
         if n > len(all_moves):
             raise ValueError("n cannot be greater than number of moves")
 
-        move_setups = list(product(all_moves, repeat=n))
-        valid_setups = [setup for setup in move_setups if Cube.is_valid_setup(setup)]
+        valid_setups = []
+        for i in range(n + 1):  # loop over each degree from 0 to n
+            move_setups = list(product(all_moves, repeat=i))
+            valid_setups.extend([setup for setup in move_setups if Cube.is_valid_setup(setup)])
 
         return valid_setups
+
     
     @staticmethod
     def make_commutator(triplet, setup=None):
