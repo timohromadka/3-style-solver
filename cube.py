@@ -4,6 +4,15 @@ from typing import List, Union, Any
 
 from PIL import Image, ImageDraw, ImageFont
 
+
+from enum import Enum
+
+class Cubie(Enum):
+    CORNERS = 0
+    EDGES = 1
+    BOTH = 2
+
+
 # TODO
 # 1. extend get_rotated_cube_state() and check_pass() (naive version) to be extendable to any amount of indexes
 # 2. write a function to clean commutator string (so that it can get passed to heuristic generator)
@@ -22,6 +31,30 @@ class Cube:
                    'B2': 'B', "B'": 'B2', 'D2': 'D', "D'": 'D2',
                    'M2': 'M', "M'": 'M2', 'E2': 'E', "E'": 'E2',
                    'S2': 'S', "S'": 'S2'}
+    
+    # Define a dictionary to keep track of which moves do not affect which
+    opposite_dict = {
+        'L': ['R', 'R2', "R'"],
+        'R': ['L', 'L2', "L'"],
+        'U': ['D', 'D2', "D'"],
+        'D': ['U', 'U2', "U'"],
+        'F': ['B', 'B2', "B'"],
+        'B': ['F', 'F2', "F'"],
+
+        'L\'': ['R', 'R2', "R'"],
+        'R\'': ['L', 'L2', "L'"],
+        'U\'': ['D', 'D2', "D'"],
+        'D\'': ['U', 'U2', "U'"],
+        'F\'': ['B', 'B2', "B'"],
+        'B\'': ['F', 'F2', "F'"],
+
+        'L2': ['R', 'R2', "R'"],
+        'R2': ['L', 'L2', "L'"],
+        'U2': ['D', 'D2', "D'"],
+        'D2': ['U', 'U2', "U'"],
+        'F2': ['B', 'B2', "B'"],
+        'B2': ['F', 'F2', "F'"]
+        }
 
     heuristics = {
         "R": 0,
@@ -295,28 +328,33 @@ class Cube:
 
         # Save the image
         image.show()
-    
+
+    # TODO
+    # also check so that opposite arent being put together
     @staticmethod
-    def get_commutator_triplets(is_corners):
+    def get_commutator_triplets(cubie: Cubie):
         move_groups = Cube.move_groups
-        if is_corners:
+        if cubie == Cubie.CORNERS:
             move_groups = move_groups[:-3]
 
         triplets = []
         for group_triplet in combinations(move_groups, 3):
             for triplet_combo in product(*group_triplet):
                 for triplet in permutations(triplet_combo):
-                    if is_corners:
+                    if cubie == Cubie.CORNERS or cubie == Cubie.BOTH:
                         triplets.append(list(triplet))
-                    elif not is_corners and any(move in ["M", "M'", "M2", "E", "E'", "E2", "S", "S'", "S2"] for move in triplet):
+                    
+                    # edge commutators require a middle slice move by nature
+                    elif cubie == Cubie.EDGES and any(move in ["M", "M'", "M2", "E", "E'", "E2", "S", "S'", "S2"] for move in triplet): 
                         triplets.append(list(triplet))
 
         return triplets
     
+    
     @staticmethod
-    def get_commutators(is_corners, degree=0):
-        triplets = Cube.get_commutator_triplets(is_corners)
-        setups = Cube.generate_setups(degree, is_corners)
+    def get_commutators(cubie: Cubie, degree=0):
+        triplets = Cube.get_commutator_triplets(cubie)
+        setups = Cube.generate_setups(degree, cubie)
         commutators = []
         for triplet in triplets:
             for setup in setups:
@@ -341,10 +379,10 @@ class Cube:
         return True
 
     @staticmethod
-    def generate_setups(n, is_corners):
+    def generate_setups(n, cubie: Cubie):
         all_moves = list(Cube.move_dict.keys())
 
-        if is_corners:
+        if cubie == Cubie.CORNERS:
             all_moves = all_moves[:-9]
 
         if n > len(all_moves):
@@ -407,22 +445,23 @@ class Cube:
         moved_state = Cube.move_from_solved(commutator)
         state_to_match = Cube.get_rotated_cube_array(indexes)
 
-        if not naive: # check that ONLY the specified cubies have been moved
+        if not naive:  # check that ONLY the specified cubies have been moved
             return np.array_equal(moved_state, state_to_match)
-        else: # allow other cubies to be moved as well
-            # first check the specified indexes
+        else:  # allow other cubies to be moved as well
             for subindexes in indexes:
-                passed = all(moved_state[subindexes[i]] == state_to_match[subindexes[i]] for i in range(len(subindexes)))
-                if passed:
-                    # then check all the adjacent subindexes as well
-                    adjacencies = [Cube.adjacencies[i] for i in subindexes] # e.g. [(9, 38), (24, 45), (27, 20)]
-                    adjacencies = [list(i) for i in zip(*adjacencies)] # e.g. [(9, 24, 27), (38, 45, 20)]
-                    for indxs_to_match in adjacencies:
-                        passed = all(moved_state[idx] == state_to_match[idx] for idx in indxs_to_match)
-                        if not passed:
-                            return False
+                if not all(moved_state[i] == state_to_match[i] for i in subindexes):
+                    return False
 
-            return passed
+                # get all the adjacent subindexes
+                adjacencies = [item for sub in subindexes for item in Cube.adjacencies[sub]]  
+                grouped_adjacencies = zip(*[iter(adjacencies)] * len(subindexes))
+
+                for adj_group in grouped_adjacencies:
+                    if not all(moved_state[idx] == state_to_match[idx] for idx in adj_group):
+                        return False
+            else:
+                return True
+
         
     # @staticmethod
     # def check_pass(pos1, pos2, pos3, commutator, is_corners):
