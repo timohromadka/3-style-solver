@@ -489,8 +489,6 @@ class Cube:
     def clean_commutator(commutator: List[str]) -> str:
         return ' '.join([move.ljust(2) for move in commutator])
     
-    # TODO
-    # make this neater!
     @staticmethod
     def reduce_commutator(commutator: List[str]) -> List[str]:
         reduction_dict = {
@@ -524,8 +522,21 @@ class Cube:
                 new_commutator == current_round
             else:
                 not_reduced = False
-
+        
         return new_commutator
+
+        # Reduction based on opposite_dict
+        reduced_commutator = []
+        i = 0
+        while i < len(new_commutator):
+            move = new_commutator[i]
+            if i < len(new_commutator) - 1 and new_commutator[i + 1] in Cube.opposite_dict.get(move, []):
+                move += "2"  # Combine moves into a double move
+                i += 1  # Skip the next move since it has been accounted for
+            reduced_commutator.append(move)
+            i += 1
+
+        return reduced_commutator
     
 if __name__ == "__main__":
     ...
