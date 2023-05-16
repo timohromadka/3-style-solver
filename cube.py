@@ -62,7 +62,10 @@ class Cube:
         "F": 1,
         "D": 0,
         "L": 2, 
-        "B": 5
+        "B": 5,
+        "S": 2,
+        "E": 2,
+        "M": 0
     }
 
     adjacencies = {
